@@ -1,0 +1,11 @@
+variable,rango_plausible,n_validos,minimo_obs,maximo_obs,fuera_de_rango,porcentaje,criterio
+year,"[1870, 2026]",85854,1894.0,2020.0,0,0.0,el cine comienza en la década de 1890; no hay estrenos futuros
+avg_vote,"[1, 10]",85855,1.0,9.9,0,0.0,escala de votación de IMDb
+votes,"[0, ∞]",85855,99,2278845,0,0.0,no puede haber votos negativos
+duration,"[1, 1000]",85855,41,808,0,0.0,"minutos; fuera de rango puede ser real (maratones, TV), se revisa con cautela"
+metascore,"[0, 100]",13305,1.0,100.0,0,0.0,escala del Metascore
+reviews_from_users,"[0, ∞]",78258,1.0,10472.0,0,0.0,"conteo, no puede ser negativo"
+reviews_from_critics,"[0, ∞]",74058,1.0,999.0,0,0.0,"conteo, no puede ser negativo"
+budget == 0,> 0,23710,0,350000000000,34,0.04,un monto 0 probablemente significa dato desconocido
+usa_gross_income == 0,> 0,15326,30,936662225,0,0.0,un monto 0 probablemente significa dato desconocido
+worlwide_gross_income == 0,> 0,31016,1,2797800564,0,0.0,un monto 0 probablemente significa dato desconocido

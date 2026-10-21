@@ -15,6 +15,8 @@ Etapas del script (cada integrante completa su sección):
 
 import argparse
 import sys
+import csv
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -49,16 +51,252 @@ def guardar_tabla(df: pd.DataFrame, nombre: str) -> None:
 
 
 # =============================================================================
-# 1-2. CARGA, INSPECCIÓN Y DIAGNÓSTICO (Valentina reemplaza esta versión mínima)
+# 1-2. CARGA, INSPECCIÓN Y DIAGNÓSTICO DE CALIDAD (Valentina)
 # =============================================================================
-def cargar_datos(ruta: Path) -> pd.DataFrame:
-    """Lectura mínima provisoria. Valentina agrega inspección y diagnóstico."""
+# Requiere estos imports al inicio del archivo (junto a los existentes):
+#     import csv
+#     from datetime import date
+
+# Columnas que el análisis necesita sí o sí (si falta alguna, se avisa y se detiene)
+COLUMNAS_REQUERIDAS = [
+    "imdb_title_id", "title", "year", "date_published", "genre", "duration",
+    "country", "avg_vote", "votes", "budget", "usa_gross_income",
+    "worlwide_gross_income", "reviews_from_users", "reviews_from_critics",
+]
+# Nombres de personas: el enunciado pide no usar datos personales, así que se
+# excluyen del análisis y de todos los entregables (después del diagnóstico).
+COLUMNAS_PERSONALES = ["director", "writer", "actors"]
+COLUMNAS_NUMERICAS_ESPERADAS = [
+    "year", "duration", "avg_vote", "votes", "metascore",
+    "reviews_from_users", "reviews_from_critics",
+]
+# Vienen como texto con prefijo de moneda (ej. "$ 2250", "INR 1000"). OJO: la
+# columna se llama "worlwide_gross_income" (sin la "d") en el dataset original.
+COLUMNAS_MONETARIAS = ["budget", "usa_gross_income", "worlwide_gross_income"]
+FORMATO_FECHA = "%Y-%m-%d"
+# variable: (mínimo plausible, máximo plausible, criterio)
+RANGOS_PLAUSIBLES = {
+    "year": (1870, date.today().year, "el cine comienza en la década de 1890; no hay estrenos futuros"),
+    "avg_vote": (1, 10, "escala de votación de IMDb"),
+    "votes": (0, None, "no puede haber votos negativos"),
+    "duration": (1, 1000, "minutos; fuera de rango puede ser real (maratones, TV), se revisa con cautela"),
+    "metascore": (0, 100, "escala del Metascore"),
+    "reviews_from_users": (0, None, "conteo, no puede ser negativo"),
+    "reviews_from_critics": (0, None, "conteo, no puede ser negativo"),
+}
+
+
+def _detectar_separador(ruta: Path, encoding: str) -> str:
+    """Elige el separador más frecuente en la línea de encabezados."""
+    with open(ruta, "r", encoding=encoding, errors="replace", newline="") as f:
+        encabezado = f.readline()
+    conteo = {sep: encabezado.count(sep) for sep in [",", ";", "\t", "|"]}
+    return max(conteo, key=conteo.get)
+
+
+def _leer_csv(ruta: Path) -> pd.DataFrame:
+    """Lee el CSV detectando codificación y separador, con mensajes de error claros."""
     if not ruta.exists():
-        sys.exit(f"ERROR: no se encontró el archivo de datos en '{ruta}'.")
-    df = pd.read_csv(ruta, low_memory=False, encoding="utf-8")
+        sys.exit(f"ERROR: no se encontró el archivo de datos en '{ruta}'. "
+                 "Revisa la ruta o pásala con --ruta.")
+    if ruta.suffix.lower() != ".csv":
+        print(f"ADVERTENCIA: '{ruta.name}' no tiene extensión .csv, se intenta leer igual.")
+
+    df = None
+    for encoding in ("utf-8-sig", "latin-1"):
+        try:
+            sep = _detectar_separador(ruta, encoding)
+            df = pd.read_csv(ruta, sep=sep, encoding=encoding, low_memory=False)
+            nombre_sep = {"\t": "tabulación"}.get(sep, sep)
+            print(f"Archivo leído con codificación '{encoding}' y separador '{nombre_sep}'.")
+            break
+        except UnicodeDecodeError:
+            print(f"  La codificación '{encoding}' falló, se prueba la siguiente.")
+        except pd.errors.EmptyDataError:
+            sys.exit(f"ERROR: el archivo '{ruta.name}' está vacío.")
+        except pd.errors.ParserError as e:
+            sys.exit(f"ERROR: el archivo '{ruta.name}' tiene un formato CSV inválido: {e}")
+    if df is None:
+        sys.exit(f"ERROR: no se pudo decodificar '{ruta.name}' con ninguna codificación probada.")
+    if df.shape[1] <= 1:
+        sys.exit("ERROR: el archivo se leyó con una sola columna; "
+                 "probablemente el separador no es el esperado.")
+    return df
+
+
+def inspeccionar_datos(df: pd.DataFrame) -> None:
+    """Informa dimensiones, columnas, tipos y primeras filas; valida el mínimo de registros."""
+    print("\n=== 1. CARGA E INSPECCIÓN ===")
     print(f"Registros leídos: {len(df):,} | Columnas: {df.shape[1]}")
+    print("\nColumnas y tipos de dato (tal como los infiere pandas):")
+    print(df.dtypes.astype(str).to_string())
+
+    # Las columnas con nombres de personas no se muestran en pantalla
+    vista = [c for c in ["imdb_title_id", "title", "year", "genre", "duration",
+                         "country", "avg_vote", "votes", "budget"] if c in df.columns]
+    print("\nPrimeras observaciones (sin columnas con nombres de personas):")
+    print(df[vista].head(5).to_string(max_colwidth=28))
+
+    faltan = [c for c in COLUMNAS_REQUERIDAS if c not in df.columns]
+    if faltan:
+        sys.exit(f"ERROR: faltan columnas necesarias en el archivo: {faltan}")
+    # El mínimo se valida con los datos tal como llegaron, antes de cualquier limpieza
     if len(df) < MIN_REGISTROS:
-        sys.exit(f"ERROR: el dataset tiene {len(df):,} registros (< {MIN_REGISTROS:,}).")
+        sys.exit(f"ERROR: el dataset tiene {len(df):,} registros (mínimo exigido: {MIN_REGISTROS:,}).")
+    print(f"\nOK: {len(df):,} registros de entrada (mínimo {MIN_REGISTROS:,}).")
+
+
+def _tabla_faltantes(df: pd.DataFrame) -> pd.DataFrame:
+    n = len(df)
+    tabla = pd.DataFrame({
+        "faltantes": df.isna().sum(),
+        "porcentaje": (df.isna().sum() / n * 100).round(2),
+    }).sort_values("faltantes", ascending=False)
+    tabla.index.name = "columna"
+    return tabla
+
+
+def _tabla_duplicados(df: pd.DataFrame) -> pd.DataFrame:
+    """Separa duplicados exactos, ID repetido y títulos repetidos con ID distinto."""
+    exactos = int(df.duplicated(keep="first").sum())
+    id_repetido = int(df.duplicated(subset=["imdb_title_id"], keep="first").sum())
+    ids_por_titulo = df.groupby(["title", "year"], dropna=False)["imdb_title_id"].nunique()
+    grupos_repetidos = ids_por_titulo[ids_por_titulo > 1]
+    filas = [
+        {"tipo": "Duplicados exactos (todas las columnas iguales)", "cantidad": exactos,
+         "interpretacion": "Error de registro: la misma fila repetida.",
+         "decision": "Eliminar" if exactos else "Sin problema detectado"},
+        {"tipo": "imdb_title_id repetido", "cantidad": id_repetido,
+         "interpretacion": "El identificador debería ser único por película.",
+         "decision": "Revisar y conservar una fila por ID" if id_repetido else "Sin problema detectado"},
+        {"tipo": "Mismo título y año con ID distinto (filas involucradas)",
+         "cantidad": int(grupos_repetidos.sum()),
+         "interpretacion": "Repetición válida: son películas distintas con el mismo nombre.",
+         "decision": "Conservar (no es duplicado)"},
+    ]
+    tabla = pd.DataFrame(filas).set_index("tipo")
+    return tabla
+
+
+def _tabla_tipos(df: pd.DataFrame) -> pd.DataFrame:
+    """Tipos de dato y valores que no se pueden convertir al tipo esperado."""
+    filas = {}
+    for col in df.columns:
+        filas[col] = {"tipo_pandas": str(df[col].dtype), "no_convertibles": 0, "ejemplos": ""}
+    for col in COLUMNAS_NUMERICAS_ESPERADAS:
+        if col in df.columns:
+            conv = pd.to_numeric(df[col], errors="coerce")
+            malos = df[col][conv.isna() & df[col].notna()]
+            filas[col]["no_convertibles"] = int(len(malos))
+            filas[col]["ejemplos"] = " | ".join(map(str, malos.unique()[:3]))
+    fechas = pd.to_datetime(df["date_published"], format=FORMATO_FECHA, errors="coerce")
+    malas = df["date_published"][fechas.isna() & df["date_published"].notna()]
+    filas["date_published"]["no_convertibles"] = int(len(malas))
+    filas["date_published"]["ejemplos"] = " | ".join(map(str, malas.unique()[:3]))
+    tabla = pd.DataFrame(filas).T
+    tabla.index.name = "columna"
+    return tabla
+
+
+def _tabla_rangos(df: pd.DataFrame) -> pd.DataFrame:
+    """Valores fuera de rangos plausibles (se cuentan, NO se eliminan aquí)."""
+    filas = {}
+    n = len(df)
+    for col, (lo, hi, criterio) in RANGOS_PLAUSIBLES.items():
+        if col not in df.columns:
+            continue
+        s = pd.to_numeric(df[col], errors="coerce")
+        fuera = pd.Series(False, index=s.index)
+        if lo is not None:
+            fuera |= s < lo
+        if hi is not None:
+            fuera |= s > hi
+        filas[col] = {
+            "rango_plausible": f"[{lo}, {hi if hi is not None else '∞'}]",
+            "n_validos": int(s.notna().sum()),
+            "minimo_obs": s.min(), "maximo_obs": s.max(),
+            "fuera_de_rango": int(fuera.sum()),
+            "porcentaje": round(fuera.sum() / n * 100, 3),
+            "criterio": criterio,
+        }
+    # Montos en cero: en este dataset suelen representar "dato desconocido"
+    for col in COLUMNAS_MONETARIAS:
+        digitos = pd.to_numeric(df[col].dropna().astype(str).str.replace(r"\D", "", regex=True),
+                                errors="coerce")
+        ceros = int((digitos == 0).sum())
+        filas[f"{col} == 0"] = {
+            "rango_plausible": "> 0", "n_validos": int(len(digitos)),
+            "minimo_obs": digitos.min(), "maximo_obs": digitos.max(),
+            "fuera_de_rango": ceros, "porcentaje": round(ceros / n * 100, 3),
+            "criterio": "un monto 0 probablemente significa dato desconocido",
+        }
+    tabla = pd.DataFrame(filas).T
+    tabla.index.name = "variable"
+    return tabla
+
+
+def _tabla_monedas(df: pd.DataFrame) -> pd.DataFrame:
+    """Prefijo de moneda de las columnas de dinero (no se pueden sumar monedas distintas)."""
+    partes = []
+    for col in COLUMNAS_MONETARIAS:
+        s = df[col].dropna().astype(str).str.strip()
+        prefijo = s.str.extract(r"^([^\d\s.,-]+)")[0].fillna("(sin prefijo)")
+        conteo = prefijo.value_counts().head(8)
+        t = pd.DataFrame({"columna": col, "moneda": conteo.index, "registros": conteo.values})
+        t["porcentaje_de_no_nulos"] = (t["registros"] / len(s) * 100).round(2)
+        partes.append(t)
+    return pd.concat(partes).set_index(["columna", "moneda"])
+
+
+def diagnosticar_calidad(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Diagnóstico: faltantes, duplicados, tipos inconsistentes y rangos. Solo informa, no modifica."""
+    print("\n=== 2. DIAGNÓSTICO DE CALIDAD ===")
+    faltantes = _tabla_faltantes(df)
+    duplicados = _tabla_duplicados(df)
+    tipos = _tabla_tipos(df)
+    rangos = _tabla_rangos(df)
+    monedas = _tabla_monedas(df)
+    resumen = pd.DataFrame({
+        "valor": [len(df), df.shape[1], int(df.isna().any(axis=1).sum()),
+                  ", ".join(c for c in COLUMNAS_PERSONALES if c in df.columns)]},
+        index=["registros_de_entrada", "columnas", "filas_con_algun_faltante",
+               "columnas_excluidas_por_datos_personales"])
+    resumen.index.name = "indicador"
+
+    print(f"Columnas con más faltantes:\n{faltantes.head(5).to_string()}")
+    print(f"\nDuplicados:\n{duplicados['cantidad'].to_string()}")
+    malos = tipos[tipos["no_convertibles"] > 0]
+    print(f"\nColumnas con valores no convertibles:\n"
+          f"{malos[['no_convertibles', 'ejemplos']].to_string() if len(malos) else 'ninguna'}")
+    print(f"\nValores fuera de rango plausible:\n{rangos['fuera_de_rango'].to_string()}")
+
+    return {
+        "diagnostico_resumen": resumen,
+        "diagnostico_faltantes": faltantes,
+        "diagnostico_duplicados": duplicados,
+        "diagnostico_tipos": tipos,
+        "diagnostico_rangos": rangos,
+        "diagnostico_monedas": monedas,
+    }
+
+
+def excluir_columnas_personales(df: pd.DataFrame) -> pd.DataFrame:
+    """Quita nombres de personas del dataset que sigue en el pipeline y de los entregables."""
+    presentes = [c for c in COLUMNAS_PERSONALES if c in df.columns]
+    print(f"\nColumnas excluidas por contener nombres de personas: {presentes}")
+    return df.drop(columns=presentes)
+
+
+def cargar_datos(ruta: Path) -> pd.DataFrame:
+    """Carga, inspecciona y diagnostica. Devuelve los datos SIN limpiar (salvo columnas personales)."""
+    df = _leer_csv(ruta)
+    n_entrada = len(df)
+    inspeccionar_datos(df)
+    for nombre, tabla in diagnosticar_calidad(df).items():
+        guardar_tabla(tabla, nombre)
+    df = excluir_columnas_personales(df)
+    # Benjamin puede usar este valor para el registro de limpieza (antes/después)
+    df.attrs["n_registros_entrada"] = n_entrada
     return df
 
 
