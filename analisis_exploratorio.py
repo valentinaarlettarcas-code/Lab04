@@ -119,9 +119,13 @@ def estadistica_descriptiva_numerica(df: pd.DataFrame, columnas=VARIABLES_NUMERI
 # ---------------------------------------------------------------------------
 # 5.2 Frecuencias y porcentajes de variables categóricas
 # ---------------------------------------------------------------------------
-def frecuencias_categoricas(df: pd.DataFrame, columna: str, top: int | None = TOP_CATEGORIAS) -> pd.DataFrame:
-    """Frecuencia absoluta, % y % acumulado. Agrupa el resto en 'Otros' si se pide top."""
+def frecuencias_categoricas(df: pd.DataFrame, columna: str, top: int | None = TOP_CATEGORIAS,
+                            orden_natural: bool = False) -> pd.DataFrame:
+    """Frecuencia absoluta, % y % acumulado. Agrupa el resto en 'Otros' si se pide top.
+    orden_natural=True ordena por la categoría (útil para décadas) en vez de por frecuencia."""
     conteo = df[columna].value_counts(dropna=False)
+    if orden_natural:
+        conteo = conteo.sort_index()
     if top is not None and len(conteo) > top:
         otros = conteo.iloc[top:].sum()
         conteo = conteo.iloc[:top]
@@ -216,7 +220,7 @@ def ejecutar_analisis_estadistico(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
         "descriptiva_numericas": estadistica_descriptiva_numerica(df),
         "frecuencia_genero": frecuencias_categoricas(df, "genero_principal"),
         "frecuencia_pais": frecuencias_categoricas(df, "pais_principal"),
-        "frecuencia_decada": frecuencias_categoricas(df, "decada", top=None).sort_index(),
+        "frecuencia_decada": frecuencias_categoricas(df, "decada", top=None, orden_natural=True),
         "grupo_genero_avg_vote": comparar_por_grupo(df, "genero_principal", "avg_vote"),
         "grupo_genero_duracion": comparar_por_grupo(df, "genero_principal", "duration"),
         "grupo_pais_avg_vote": comparar_por_grupo(df, "pais_principal", "avg_vote"),
