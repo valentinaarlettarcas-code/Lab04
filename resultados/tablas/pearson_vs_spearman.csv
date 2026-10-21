@@ -1,0 +1,6 @@
+variable_x,variable_y,n,pearson,spearman
+votes,avg_vote,85854,0.167,0.282
+log_votes,avg_vote,85854,0.29,0.282
+duration,avg_vote,85854,0.242,0.283
+year,avg_vote,85854,-0.218,-0.203
+reviews_from_users,reviews_from_critics,69967,0.672,0.683

@@ -1,0 +1,12 @@
+genero_principal,frecuencia,porcentaje,porcentaje_acumulado
+Drama,25386,29.57,29.57
+Comedy,24297,28.3,57.87
+Action,12182,14.19,72.06
+Crime,5557,6.47,78.53
+Horror,5113,5.96,84.49
+Adventure,3599,4.19,88.68
+Animation,2108,2.46,91.14
+Biography,2066,2.41,93.55
+Thriller,1375,1.6,95.15
+Romance,767,0.89,96.04
+Otros,3404,3.96,100.0

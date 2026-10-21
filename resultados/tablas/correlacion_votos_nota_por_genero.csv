@@ -1,0 +1,11 @@
+genero_principal,n,spearman
+Biography,2066.0,0.452
+Horror,5113.0,0.421
+Crime,5557.0,0.41
+Adventure,3599.0,0.358
+Animation,2108.0,0.33
+Action,12182.0,0.326
+Drama,25386.0,0.307
+Comedy,24297.0,0.291
+Romance,767.0,0.264
+Thriller,1375.0,0.235

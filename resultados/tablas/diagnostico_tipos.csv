@@ -1,0 +1,23 @@
+columna,tipo_pandas,no_convertibles,ejemplos
+imdb_title_id,str,0,
+title,str,0,
+original_title,str,0,
+year,str,1,TV Movie 2019
+date_published,str,4563,1913 | 1915 | 1919
+genre,str,0,
+duration,int64,0,
+country,str,0,
+language,str,0,
+director,str,0,
+writer,str,0,
+production_company,str,0,
+actors,str,0,
+description,str,0,
+avg_vote,float64,0,
+votes,int64,0,
+budget,str,0,
+usa_gross_income,str,0,
+worlwide_gross_income,str,0,
+metascore,float64,0,
+reviews_from_users,float64,0,
+reviews_from_critics,float64,0,

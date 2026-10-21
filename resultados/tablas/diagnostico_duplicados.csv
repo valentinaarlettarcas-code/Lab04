@@ -1,0 +1,4 @@
+tipo,cantidad,interpretacion,decision
+Duplicados exactos (todas las columnas iguales),0,Error de registro: la misma fila repetida.,Sin problema detectado
+imdb_title_id repetido,0,El identificador debería ser único por película.,Sin problema detectado
+Mismo título y año con ID distinto (filas involucradas),235,Repetición válida: son películas distintas con el mismo nombre.,Conservar (no es duplicado)

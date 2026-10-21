@@ -1,0 +1,5 @@
+indicador,valor
+registros_de_entrada,85855
+columnas,22
+filas_con_algun_faltante,79240
+columnas_excluidas_por_datos_personales,"director, writer, actors"
