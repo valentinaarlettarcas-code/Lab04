@@ -1,0 +1,11 @@
+paso,filas_antes,filas_despues,filas_eliminadas,decision
+Carga inicial (sin columnas personales),85855,85855,0,"Datos tal como llegan del diagnóstico; solo se quitaron director, writer y actors"
+Duplicados exactos e IDs repetidos,85855,85855,0,Se eliminan si existen; las 235 filas con mismo título y año e ID distinto se conservan
+Conversión de year a número,85855,85854,1,Se eliminan las filas cuyo año no es numérico ('TV Movie 2019')
+Conversión de date_published a fecha,85854,85854,0,4562 fechas con solo el año quedan vacías (NaT); se conservan y el tiempo se analiza con year
+Separación de moneda y monto en budget,85854,85854,0,23676 filas con monto (27.6%); 34 montos en 0 pasan a faltante; las monedas no se mezclan; se conservan las filas sin monto
+Separación de moneda y monto en usa_gross_income,85854,85854,0,15326 filas con monto (17.9%); 0 montos en 0 pasan a faltante; las monedas no se mezclan; se conservan las filas sin monto
+Separación de moneda y monto en worlwide_gross_income,85854,85854,0,31016 filas con monto (36.1%); 0 montos en 0 pasan a faltante; las monedas no se mezclan; se conservan las filas sin monto
+Validación de duration,85854,85854,0,Se eliminan nulos o <= 0; 39 películas de más de 300 min (máx. 808) se conservan marcadas en duracion_extrema
+Validación de avg_vote y votes,85854,85854,0,Se eliminan películas sin nota o sin votos
+Variables derivadas,85854,85854,0,"Se crean decada, log_votes, genero_principal, pais_principal y generos; 64 películas sin país se conservan (quedan fuera solo de las tablas por país)"

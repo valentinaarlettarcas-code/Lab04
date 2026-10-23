@@ -304,23 +304,131 @@ def cargar_datos(ruta: Path) -> pd.DataFrame:
 # 3-4. LIMPIEZA Y PREPARACIÓN (Benjamin amplía; NO cambiar los nombres de las
 #      columnas derivadas porque las secciones 5-7 dependen de ellas)
 # =============================================================================
+# Duraciones mayores a este umbral se conservan, pero quedan marcadas
+UMBRAL_DURACION_EXTREMA = 300   # minutos (5 horas)
+
+
+def _registrar(registro: list, paso: str, antes: int, df: pd.DataFrame, decision: str) -> None:
+    """Agrega una fila al registro de limpieza con las filas antes y después del paso."""
+    registro.append({
+        "paso": paso,
+        "filas_antes": antes,
+        "filas_despues": len(df),
+        "filas_eliminadas": antes - len(df),
+        "decision": decision,
+    })
+
+
+def _separar_moneda_y_monto(serie: pd.Series) -> tuple[pd.Series, pd.Series]:
+    """Separa textos como '$ 2250' o 'INR 1000' en moneda y monto numérico (0 pasa a NaN)."""
+    texto = serie.str.strip()
+    moneda = texto.str.extract(r"^([^\d\s.,-]+)")[0]
+    monto = pd.to_numeric(texto.str.replace(r"\D", "", regex=True), errors="coerce")
+    # Un monto 0 significa dato desconocido, no una película sin presupuesto
+    monto = monto.where(monto > 0)
+    return moneda, monto
+
+
+def _tabla_sesgo_genero(df: pd.DataFrame) -> pd.DataFrame:
+    """Compara cuántas películas tienen cada género con cuántas lo reciben como genero_principal."""
+    con_genero = df["generos"].explode().value_counts()
+    como_principal = df["genero_principal"].value_counts()
+    tabla = pd.DataFrame({"peliculas_con_el_genero": con_genero,
+                          "como_genero_principal": como_principal}).fillna(0).astype(int)
+    tabla["pct_como_principal"] = (tabla["como_genero_principal"]
+                                   / tabla["peliculas_con_el_genero"] * 100).round(1)
+    tabla = tabla.sort_values("peliculas_con_el_genero", ascending=False)
+    tabla.index.name = "genero"
+    return tabla
+
+
 def preparar_datos(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Versión mínima: convierte `year` y crea las variables derivadas que usa
-    el análisis. Benjamin añade aquí el tratamiento de nulos, extremos y el
-    registro de limpieza (antes/después de cada paso).
+    Limpieza y preparación: duplicados, conversión de tipos, montos, valores
+    extremos y variables derivadas. Registra las filas antes y después de cada
+    paso y lo exporta a resultados/tablas/registro_limpieza.csv.
     """
+    print("\n=== 3-4. LIMPIEZA Y PREPARACIÓN ===")
     df = df.copy()
+    registro = []
+    n_entrada = df.attrs.get("n_registros_entrada", len(df))
+    _registrar(registro, "Carga inicial (sin columnas personales)", n_entrada, df,
+               "Datos tal como llegan del diagnóstico; solo se quitaron director, writer y actors")
+
+    # Duplicados: el diagnóstico encontró 0, se deja el control por reproducibilidad.
+    # Mismo título y año con distinto ID son películas distintas y se conservan.
+    antes = len(df)
+    df = df.drop_duplicates()
+    df = df.drop_duplicates(subset=["imdb_title_id"], keep="first")
+    _registrar(registro, "Duplicados exactos e IDs repetidos", antes, df,
+               "Se eliminan si existen; las 235 filas con mismo título y año e ID distinto se conservan")
+
     # `year` llega como texto por una fila con valor 'TV Movie 2019'
+    antes = len(df)
     df["year"] = pd.to_numeric(df["year"], errors="coerce")
     df = df.dropna(subset=["year"])
     df["year"] = df["year"].astype(int)
+    _registrar(registro, "Conversión de year a número", antes, df,
+               "Se eliminan las filas cuyo año no es numérico ('TV Movie 2019')")
+
+    # `date_published` trae filas con solo el año; el análisis temporal usa `year`
+    antes = len(df)
+    df["date_published"] = pd.to_datetime(df["date_published"], format=FORMATO_FECHA, errors="coerce")
+    sin_fecha = int(df["date_published"].isna().sum())
+    _registrar(registro, "Conversión de date_published a fecha", antes, df,
+               f"{sin_fecha} fechas con solo el año quedan vacías (NaT); se conservan y el tiempo se analiza con year")
+
+    # Montos: vienen con prefijo de moneda y no se pueden comparar entre monedas
+    for col in COLUMNAS_MONETARIAS:
+        antes = len(df)
+        ceros = int((pd.to_numeric(df[col].str.replace(r"\D", "", regex=True), errors="coerce") == 0).sum())
+        df[f"{col}_moneda"], df[f"{col}_monto"] = _separar_moneda_y_monto(df[col])
+        con_dato = int(df[f"{col}_monto"].notna().sum())
+        _registrar(registro, f"Separación de moneda y monto en {col}", antes, df,
+                   f"{con_dato} filas con monto ({con_dato / len(df):.1%}); {ceros} montos en 0 pasan a "
+                   "faltante; las monedas no se mezclan; se conservan las filas sin monto")
+
+    # Duración: se eliminan solo valores imposibles; los extremos se conservan con advertencia
+    antes = len(df)
+    df["duration"] = pd.to_numeric(df["duration"], errors="coerce")
+    df = df[df["duration"] > 0]
+    df["duracion_extrema"] = df["duration"] > UMBRAL_DURACION_EXTREMA
+    extremas = int(df["duracion_extrema"].sum())
+    _registrar(registro, "Validación de duration", antes, df,
+               f"Se eliminan nulos o <= 0; {extremas} películas de más de {UMBRAL_DURACION_EXTREMA} min "
+               f"(máx. {df['duration'].max()}) se conservan marcadas en duracion_extrema")
+
+    # Nota y votos son necesarios para responder las 4 preguntas
+    antes = len(df)
+    df["avg_vote"] = pd.to_numeric(df["avg_vote"], errors="coerce")
+    df["votes"] = pd.to_numeric(df["votes"], errors="coerce")
+    df = df.dropna(subset=["avg_vote", "votes"])
+    _registrar(registro, "Validación de avg_vote y votes", antes, df,
+               "Se eliminan películas sin nota o sin votos")
 
     # Variables derivadas (documentadas en el diccionario de datos)
+    antes = len(df)
     df["decada"] = (df["year"] // 10) * 10                      # década de estreno
     df["log_votes"] = np.log10(df["votes"])                      # votos en escala log10
     df["genero_principal"] = df["genre"].str.split(",").str[0].str.strip()
     df["pais_principal"] = df["country"].str.split(",").str[0].str.strip()
+    # IMDb lista los géneros en orden alfabético, así que genero_principal es el
+    # primero del abecedario y no el más representativo. `generos` guarda la
+    # lista completa para analizar cada película en todos sus géneros (df.explode).
+    df["generos"] = df["genre"].str.split(",").apply(lambda lista: [g.strip() for g in lista])
+    pct_alfabetico = df["generos"].apply(lambda lista: lista == sorted(lista)).mean() * 100
+    sin_pais = int(df["pais_principal"].isna().sum())
+    _registrar(registro, "Variables derivadas", antes, df,
+               f"Se crean decada, log_votes, genero_principal, pais_principal y generos; "
+               f"{sin_pais} películas sin país se conservan (quedan fuera solo de las tablas por país)")
+
+    tabla = pd.DataFrame(registro).set_index("paso")
+    print(tabla[["filas_antes", "filas_despues", "filas_eliminadas"]].to_string())
+    print(f"\nRegistros de entrada: {n_entrada:,} | Registros finales: {len(df):,}")
+    print(f"ADVERTENCIA: {pct_alfabetico:.1f}% de las películas lista sus géneros en orden alfabético; "
+          "genero_principal favorece a los géneros que empiezan con A, B o C (ver sesgo_genero_principal.csv)")
+    guardar_tabla(tabla, "registro_limpieza")
+    guardar_tabla(_tabla_sesgo_genero(df), "sesgo_genero_principal")
     return df
 
 
