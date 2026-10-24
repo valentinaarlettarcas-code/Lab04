@@ -486,9 +486,80 @@ def ejecutar_analisis_estadistico(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
 # =============================================================================
 # 7. VISUALIZACIONES (Vianca)
 # =============================================================================
+import matplotlib.pyplot as plt
+import seaborn as sns
+from pathlib import Path
+
 def generar_graficos(df: pd.DataFrame, resultados: dict) -> None:
-    """Pendiente: 5 gráficos obligatorios + gráfico de la pregunta del equipo."""
-    pass
+    """Genera y exporta los 6 gráficos obligatorios en formato PNG."""
+    # Asegurar que la carpeta de figuras exista usando la variable global del script
+    from __main__ import DIR_FIGURAS
+    DIR_FIGURAS.mkdir(parents=True, exist_ok=True)
+
+    # 1. Distribución de una variable numérica (Nota promedio)
+    plt.figure(figsize=(8, 5))
+    df['avg_vote'].hist(bins=20, color='skyblue', edgecolor='black')
+    plt.title('1. Distribución de la Calificación Promedio (avg_vote)')
+    plt.xlabel('Calificación Promedio')
+    plt.ylabel('Frecuencia (Cantidad de Películas)')
+    plt.savefig(DIR_FIGURAS / '1_distribucion_nota.png', bbox_inches='tight')
+    plt.close()
+
+    # 2. Valores extremos (Duración)
+    plt.figure(figsize=(8, 5))
+    plt.boxplot(df['duration'].dropna(), orientation='horizontal', patch_artist=True)
+    plt.title('2. Distribución y Valores Extremos de la Duración')
+    plt.xlabel('Duración (minutos)')
+    plt.yticks([1], ['Películas'])
+    plt.savefig(DIR_FIGURAS / '2_valores_extremos_duracion.png', bbox_inches='tight')
+    plt.close()
+
+    # 3. Dispersión por grupos (Relación Nota vs Votos por los 5 géneros más comunes)
+    # Se filtran solo los top 5 para evitar un gráfico ilegible por exceso de categorías
+    top_5_generos = resultados["frecuencia_genero"].head(5).index
+    df_top_generos = df[df['genero_principal'].isin(top_5_generos)]
+    
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(data=df_top_generos, x='log_votes', y='avg_vote', hue='genero_principal', alpha=0.6)
+    plt.title('3. Dispersión de Calificación vs Votos (Top 5 Géneros Principales)')
+    plt.xlabel('Votos (Escala Logarítmica - log_votes)')
+    plt.ylabel('Calificación Promedio')
+    plt.legend(title='Género Principal')
+    plt.savefig(DIR_FIGURAS / '3_dispersion_grupos_genero.png', bbox_inches='tight')
+    plt.close()
+
+    # 4. Frecuencias o comparación de categorías (Top 10 Países)
+    plt.figure(figsize=(10, 6))
+    df_pais = resultados["frecuencia_pais"].head(10)
+    plt.bar(df_pais.index, df_pais['frecuencia'], color='coral', edgecolor='black')
+    plt.title('4. Frecuencia de Películas por País de Origen (Top 10)')
+    plt.xlabel('País Principal')
+    plt.ylabel('Cantidad de Películas')
+    plt.xticks(rotation=45, ha='right')
+    plt.savefig(DIR_FIGURAS / '4_frecuencias_paises.png', bbox_inches='tight')
+    plt.close()
+
+    # 5. Relación entre variables (Duración vs Calificación)
+    plt.figure(figsize=(10, 6))
+    plt.scatter(df['duration'], df['avg_vote'], alpha=0.3, color='purple')
+    plt.title('5. Relación entre Duración y Calificación Promedio')
+    plt.xlabel('Duración (minutos)')
+    plt.ylabel('Calificación Promedio')
+    plt.savefig(DIR_FIGURAS / '5_relacion_duracion_nota.png', bbox_inches='tight')
+    plt.close()
+
+    # 6. Gráfico del equipo: Evolución de la duración a lo largo de los años (Pregunta 3)
+    plt.figure(figsize=(10, 6))
+    df_evolucion = resultados["evolucion_decada"]
+    plt.plot(df_evolucion.index, df_evolucion['duracion_mediana'], marker='o', linestyle='-', color='green', linewidth=2)
+    plt.title('6. Evolución de la Duración Mediana de las Películas por Década')
+    plt.xlabel('Década')
+    plt.ylabel('Duración Mediana (minutos)')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.savefig(DIR_FIGURAS / '6_pregunta_equipo_evolucion_duracion.png', bbox_inches='tight')
+    plt.close()
+    
+    print("  [figuras] 6 gráficos generados y guardados en resultados/figuras/")
 
 
 # =============================================================================
