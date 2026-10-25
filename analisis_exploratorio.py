@@ -43,12 +43,45 @@ MIN_OBS_GRUPO = 30       # grupos con menos películas no se comparan
 # =============================================================================
 # 8. EXPORTACIÓN (Charloth reemplaza/amplía esta función)
 # =============================================================================
+def inicializar_carpetas() -> None:
+    """Crea las carpetas de salida (idempotente)."""
+    DIR_TABLAS.mkdir(parents=True, exist_ok=True)
+    DIR_FIGURAS.mkdir(parents=True, exist_ok=True)
+    print(f"Carpetas de salida listas:\n  {DIR_TABLAS}\n  {DIR_FIGURAS}")
+
 def guardar_tabla(df: pd.DataFrame, nombre: str) -> None:
     """Exporta una tabla a resultados/tablas/<nombre>.csv."""
     DIR_TABLAS.mkdir(parents=True, exist_ok=True)
     df.to_csv(DIR_TABLAS / f"{nombre}.csv", index=True, encoding="utf-8")
     print(f"  [tabla] {nombre}.csv")
 
+def resumen_ejecucion(df_limpio: pd.DataFrame = None, n_entrada: int = None) -> None:
+    """Imprime un resumen de archivos generados (Anexo - Ejecución)."""
+    tablas = sorted(DIR_TABLAS.glob("*.csv"))
+    figuras = sorted(DIR_FIGURAS.glob("*.png"))
+    
+    print("=== RESUMEN DE EJECUCIÓN ===")
+    print("="*30)
+    if df_limpio is not None:
+        n_final= len(df_limpio)
+        if n_entrada is not None:
+            print(f"Registros de entrada: {n_entrada}")
+            eliminados = n_entrada - n_final
+            print(f"Registros eliminados: {eliminados}")
+            print(f"Registros finales: {n_final}")
+            print("-"*30)
+
+        else:
+            print(f"Registros de entrada: no informado")
+
+    print(f"Tablas generadas: {len(tablas)}")
+    for f in tablas:
+        print(f"  - {f.name}")
+    print("-"*30)
+    print(f"Figuras generadas: {len(figuras)}")
+    for f in figuras:
+        print(f"  - {f.name}")
+    print("="*30)
 
 # =============================================================================
 # 1-2. CARGA, INSPECCIÓN Y DIAGNÓSTICO DE CALIDAD (Valentina)
@@ -601,7 +634,6 @@ from pathlib import Path
 def generar_graficos(df: pd.DataFrame, resultados: dict) -> None:
     """Genera y exporta los 6 gráficos obligatorios en formato PNG."""
     # Asegurar que la carpeta de figuras exista usando la variable global del script
-    from __main__ import DIR_FIGURAS
     DIR_FIGURAS.mkdir(parents=True, exist_ok=True)
 
     # 1. Distribución de una variable numérica (Nota promedio)
@@ -680,10 +712,15 @@ def main() -> None:
     args = parser.parse_args()
     np.random.seed(SEMILLA)
 
+    inicializar_carpetas()
+
     df_original = cargar_datos(args.ruta)
     df_limpio = preparar_datos(df_original)
     resultados = ejecutar_analisis_estadistico(df_limpio)
     generar_graficos(df_limpio, resultados)
+
+    resumen_ejecucion(df_limpio, df_original.attrs.get("n_registros_entrada", len(df_original))) 
+
     print("\nProceso finalizado correctamente.")
 
 

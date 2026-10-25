@@ -1,0 +1,9 @@
+# Laboratorio 4 — EDA IMDb movies
+# Instalar con:  pip install -r requirements.txt
+# Requiere Python 3.12+ (el script usa type hints `int | None` y `dict[str, ...]`)
+
+matplotlib==3.11.2
+numpy==2.5.4
+pandas==3.0.6
+scipy==1.18.1
+seaborn==0.13.2
