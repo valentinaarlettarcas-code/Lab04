@@ -568,6 +568,7 @@ def ejecutar_analisis_estadistico(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
         "frecuencia_pais": frecuencias_categoricas(df, "pais_principal"),
         "frecuencia_decada": frecuencias_categoricas(df, "decada", top=None, orden_natural=True),
         "grupo_genero_avg_vote": comparar_por_grupo(df, "genero_principal", "avg_vote"),
+        "grupo_generos_todos_avg_vote": comparar_por_grupo(df.explode("generos"), "generos", "avg_vote", top=None),
         "grupo_genero_duracion": comparar_por_grupo(df, "genero_principal", "duration"),
         "grupo_pais_avg_vote": comparar_por_grupo(df, "pais_principal", "avg_vote"),
         "evolucion_decada": evolucion_por_decada(df),
