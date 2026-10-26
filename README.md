@@ -31,7 +31,7 @@ El dataset utilizado en este proyecto corresponde al **IMDb movies extensive dat
 - **Autor:** Simhyunsu
 - **URL de descarga:** https://www.kaggle.com/datasets/simhyunsu/imdbextensivedataset/data
 - **Fecha de descarga:** 18 de octubre de 2026
-- **Licencia:** [POR CONFIRMAR ]
+- **Licencia:** No se especificó ninguna licencia.
 - **Tamaño:** 85.855 registros
 - **Ubicación esperada:** colocar el archivo `IMDb movies.csv` dentro de la
   carpeta `dataset/` antes de ejecutar el script
@@ -54,7 +54,7 @@ Lab04
 ## Ejecución
 Desde la carpeta raíz del proyecto:
 ```bash 
-python3 analisis_exploratorio.py
+python analisis_exploratorio.py
 ```
 Para usar una ruta distinta al dataset: 
 ```bash 
@@ -94,7 +94,7 @@ Si el archivo no se encuentra en dataset/IMDb movies.csv, el script se detiene c
 |---|---|
 | Diagnóstico  | `diagnostico_resumen.csv`, `diagnostico_faltantes.csv`, `diagnostico_duplicados.csv`, `diagnostico_tipos.csv`, `diagnostico_rangos.csv`, `diagnostico_monedas.csv` |
 | Limpieza | `registro_limpieza.csv`, `sesgo_genero_principal.csv` |
-| Estadística | `descriptiva_numericas.csv`, `frecuencia_genero.csv`, `frecuencia_pais.csv`, `frecuencia_decada.csv`, `grupo_genero_avg_vote.csv`, `grupo_genero_duracion.csv`, `grupo_pais_avg_vote.csv`, `evolucion_decada.csv`, `correlacion_spearman.csv`, `correlacion_pearson.csv`, `pearson_vs_spearman.csv`, `correlacion_votos_nota_por_genero.csv` |
+| Estadística | `descriptiva_numericas.csv`, `frecuencia_genero.csv`, `frecuencia_pais.csv`, `frecuencia_decada.csv`, `grupo_genero_avg_vote.csv`, `grupo_genero_duracion.csv`, `grupo_pais_avg_vote.csv`, `evolucion_decada.csv`, `correlacion_spearman.csv`, `correlacion_pearson.csv`, `pearson_vs_spearman.csv`, `correlacion_votos_nota_por_genero.csv`, `sesgo_genero_principal.csv`|
 
 ### `resultados/figuras/` (archivos PNG)
 
