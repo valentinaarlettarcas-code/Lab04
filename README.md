@@ -38,6 +38,17 @@ El dataset utilizado en este proyecto corresponde al **IMDb movies extensive dat
 
 ## Regeneración del dataset procesado
 El script no modifica el archivo original. El dataset limpio se reconstruye íntegramente ejecutando `analisis_exploratorio.py`, que parte de `dataset/IMDb movies.csv` y se aplican las transformaciones documentadas en el informe (Sección 4: Diagnóstico y decisiones de limpieza). Cada paso queda registrado en `resultados/tablas/registro_limpieza.csv` con cantidades antes y después, por lo que el proceso es trazable.
+El script incluye la función `guardar_dataset_procesado(df)` en la sección 8, que exporta el DataFrame ya limpio a `resultados/dataset_procesado.csv`.
+Por defecto esta función no se ejecuta desde main(), porque:
+
+- El CSV pesa aproximadamente 50 MB, lo que dificulta su inclusión en el ZIPde entrega.
+- El proceso de regeneración está completamente documentado (este README y lasección 10.2 del informe), por lo que cualquier persona puede reproducirloejecutando el script. El archivo registro_limpieza.csv ya deja trazabilidad de cadatransformación aplicada.
+
+Si se necesita el dataset procesado como entregable independiente, basta condescomentar la siguiente línea en la función main() de `analisis_exploratorio.py`:
+`# guardar_dataset_procesado(df_limpio)`
+Tras ejecutar el script, el archivo se generará en
+`resultados/dataset_procesado.csv` y  mostrará el tamaño y la cantidad de filas exportadas por consola.
+
 ## Estructura del proyecto
 ``` bash
 Lab04 

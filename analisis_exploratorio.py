@@ -83,6 +83,20 @@ def resumen_ejecucion(df_limpio: pd.DataFrame = None, n_entrada: int = None) -> 
         print(f"  - {f.name}")
     print("="*30)
 
+def guardar_dataset_procesado(df: pd.DataFrame, nombre: str = "dataset_procesado") -> Path:
+    #Exporta el dataset ya limpio a resultados/dataset_procesado.csv.
+    #Parametros
+    #    df : DataFrame ya limpio (salida de preparar_datos()).
+    #    nombre : nombre del archivo sin extension (por defecto 'dataset_procesado').
+    #Retorna: Path a el archivo generado.
+    
+    DIR_TABLAS.parent.mkdir(parents=True, exist_ok=True)
+    ruta = DIR_TABLAS.parent / f"{nombre}.csv"
+    df.to_csv(ruta, index=False, encoding="utf-8")
+    tam_mb = ruta.stat().st_size / (1024 * 1024)
+    print(f"  [dataset] {ruta.name} ({len(df):,} filas, {tam_mb:.1f} MB)")
+    return ruta
+
 # =============================================================================
 # 1-2. CARGA, INSPECCIÓN Y DIAGNÓSTICO DE CALIDAD (Valentina)
 # =============================================================================
@@ -721,7 +735,7 @@ def main() -> None:
     generar_graficos(df_limpio, resultados)
 
     resumen_ejecucion(df_limpio, df_original.attrs.get("n_registros_entrada", len(df_original))) 
-
+    # guardar_dataset_procesado(df_limpio)
     print("\nProceso finalizado correctamente.")
 
 
